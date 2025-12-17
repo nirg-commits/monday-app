@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Monday Workflow</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monday-ui-react-core/dist/main.css" />
+    <style>
+        body { font-family: "Figtree", Roboto, Rubik, Noto Kufi Arabic, sans-serif; padding: 20px; background: #f7f9fa; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); text-align: center; }
+        textarea { width: 100%; height: 80px; margin-top: 10px; border: 1px solid #d0d4e4; border-radius: 4px; padding: 8px; }
+        .btn-group { margin-top: 20px; display: flex; justify-content: space-between; gap: 10px; }
+        button { flex: 1; padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-pass { background-color: #00ca72; color: white; }
+        .btn-fail { background-color: #fb275d; color: white; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/monday-sdk-js/dist/main.js"></script>
+</head>
+<body>
+
+    <div id="app" class="card">
+        <h3>טוען נתונים...</h3>
+    </div>
+
+    <script>
+        const monday = window.mondaySdk();
+        
+        // --- כאן מגדירים את השאלות והשלבים ---
+        const workflowConfig = {
+            "Start": { // שם הסטטוס במאנדיי (באנגלית או עברית בדיוק כפי שמופיע)
+                question: "האם יש אישור תקציבי?",
+                pass: "Working on it",
+                fail: "Stuck"
+            },
+            "Working on it": {
+                question: "האם הפיתוח הסתיים?",
+                pass: "Done",
+                fail: "Stuck"
+            },
+             "בבדיקה": { // דוגמה לסטטוס בעברית
+                question: "האם עבר QA?",
+                pass: "בוצע",
+                fail: "לא עבר"
+            }
+        };
+        // ----------------------------------------
+
+        async function init() {
+            // קבלת הקונטקסט (מידע על האייטם הנוכחי)
+            monday.listen("context", async (res) => {
+                const itemId = res.data.itemId;
+                const boardId = res.data.boardId;
+                
+                // שליפת הסטטוס הנוכחי
+                // הערה: בקוד פשוט זה אנו מניחים שעמודת הסטטוס נקראת פשוט "status"
+                // אם שינית את שם ה-ID של העמודה, צריך לשנות כאן
+                try {
+                    const query = `query { items (ids: [${itemId}]) { column_values(ids:"status") { text } } }`;
+                    const apiRes = await monday.api(query);
+                    const statusText = apiRes.data.items[0].column_values[0].text;
+                    
+                    renderApp(statusText, itemId, boardId);
+                } catch (e) {
+                    document.getElementById('app').innerHTML = "<h3>שגיאה בטעינת הסטטוס. ודא שאתה בתוך אייטם.</h3>";
+                }
+            });
+        }
+
+        function renderApp(status, itemId, boardId) {
+            const container = document.getElementById('app');
+            const config = workflowConfig[status];
+
+            if (!config) {
+                container.innerHTML = `<h3>סטטוס נוכחי: ${status}</h3><p>אין פעולות מוגדרות לשלב זה.</p>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <h3>שלב: ${status}</h3>
+                <p>${config.question}</p>
+                <textarea id="feedback" placeholder="כתוב הערה..."></textarea>
+                <div class="btn-group">
+                    <button class="btn-fail" onclick="handleAction('${config.fail}', '${itemId}', '${boardId}', false)">❌ (${config.fail})</button>
+                    <button class="btn-pass" onclick="handleAction('${config.pass}', '${itemId}', '${boardId}', true)">✅ (${config.pass})</button>
+                </div>
+            `;
+        }
+
+        window.handleAction = async function(newStatus, itemId, boardId, isPass) {
+            const feedback = document.getElementById('feedback').value;
+            
+            // עדכון במאנדיי
+            try {
+                const updateBody = `הוחלט: ${isPass ? 'עבר' : 'לא עבר'} <br> לסטטוס: ${newStatus} <br> הערה: ${feedback}`;
+                
+                await monday.api(`
+                    mutation {
+                        create_update (item_id: ${itemId}, body: "${updateBody}") { id }
+                        change_simple_column_value (item_id: ${itemId}, board_id: ${boardId}, column_id: "status", value: "${newStatus}") { id }
+                    }
+                `);
+                
+                monday.execute("notice", { message: "עודכן בהצלחה!", type: "success" });
+                // טעינה מחדש של הממשק תתבצע אוטומטית כי הסטטוס השתנה וה-listener יפעל
+            } catch (e) {
+                console.error(e);
+                monday.execute("notice", { message: "שגיאה בעדכון", type: "error" });
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html>
