@@ -14,18 +14,19 @@
         .btn-pass { background-color: #00ca72; color: white; }
         .btn-fail { background-color: #fb275d; color: white; }
         
-        /* עיצוב לאזור הדיבוג */
         #debug-log { 
             margin-top: 30px; 
             padding: 10px; 
             background: #333; 
             color: #0f0; 
             font-family: monospace; 
-            font-size: 12px; 
+            font-size: 11px; 
             text-align: left; 
             direction: ltr; 
             border-radius: 5px;
             white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/monday-sdk-js/dist/main.js"></script>
@@ -41,7 +42,6 @@
     <script>
         const monday = window.mondaySdk();
         
-        // פונקציה לכתיבת לוגים למסך
         function log(msg) {
             const el = document.getElementById('debug-log');
             el.innerHTML += '\n> ' + msg;
@@ -49,88 +49,94 @@
         }
 
         const workflowConfig = {
-            "ממתין לאישור": { 
-                question: "האם לאשר את הבקשה?",
-                pass: "מאושר",
-                fail: "נדחה"
+            "Start": { 
+                question: "האם להתחיל בעבודה?",
+                pass: "Working on it",
+                fail: "Stuck"
             },
-            "מאושר": {
-                question: "הפריט מאושר. האם להחזיר לבדיקה?",
-                pass: "ממתין לאישור",
-                fail: "נדחה"
+            "Working on it": {
+                question: "האם המשימה הושלמה?",
+                pass: "Done",
+                fail: "Stuck"
             },
-             "נדחה": { 
-                question: "הבקשה נדחתה. האם להגיש מחדש?",
-                pass: "ממתין לאישור",
-                fail: "נדחה"
+            "Stuck": { 
+                question: "המשימה תקועה. לנסות שוב?",
+                pass: "Start",
+                fail: "Stuck"
             },
-            "": {
-                question: "סטטוס התחלתי. להתחיל תהליך?",
-                pass: "ממתין לאישור",
-                fail: "נדחה"
+            "Done": {
+                question: "המשימה הושלמה! להחזיר לעבודה?",
+                pass: "Start",
+                fail: "Done"
             }
         };
 
         async function init() {
             monday.listen("context", async (res) => {
-                log("Context received!");
                 const itemId = res.data.itemId;
                 const boardId = res.data.boardId;
                 
-                log(`Board ID: ${boardId}`);
-                log(`Item ID: ${itemId}`);
-
+                // בדיקה אם אנחנו בתוך אייטם אמיתי
                 if (!itemId) {
-                    log("ERROR: No Item ID found. Are you testing in Preview mode?");
-                    document.getElementById('app').innerHTML = "<h3>שגיאה: לא זוהה אייטם.</h3><p>ודא שאתה מפעיל את האפליקציה מתוך לוח אמיתי ולא בחלון התצוגה המקדימה.</p>";
+                    log("ERROR: No Item ID. Are you in Preview mode?");
                     return;
                 }
                 
                 try {
-                    log("Fetching columns from API...");
-                    // שליפת כל העמודות כדי למצוא את הסטטוס
+                    log(`Fetching columns for Item ${itemId}...`);
                     const query = `query { items (ids: [${itemId}]) { column_values { id type text } } }`;
                     const apiRes = await monday.api(query);
                     
                     if (!apiRes.data || apiRes.data.items.length === 0) {
-                        log("ERROR: API returned no items.");
                         throw new Error("API Response empty");
                     }
 
                     const columns = apiRes.data.items[0].column_values;
-                    log(`Found ${columns.length} columns.`);
+                    log(`Found ${columns.length} columns:`);
                     
-                    // חיפוש עמודת הסטטוס
-                    const statusColumn = columns.find(col => col.type === "color"); 
+                    // הדפסת כל העמודות שנמצאו כדי שנבין מה קורה
+                    columns.forEach(col => {
+                        log(` - [${col.id}] Type: "${col.type}", Value: "${col.text}"`);
+                    });
+                    
+                    // התיקון: מחפש גם 'color' וגם 'status'
+                    const statusColumn = columns.find(col => col.type === "color" || col.type === "status");
 
                     if (!statusColumn) {
-                         log("ERROR: No 'color' (status) column found in this board.");
-                         document.getElementById('app').innerHTML = "<h3>לא נמצאה עמודת סטטוס</h3><p>הלוח חייב להכיל עמודת סטטוס אחת לפחות.</p>";
+                         log("ERROR: No status column found matching 'color' or 'status'.");
+                         document.getElementById('app').innerHTML = "<h3>לא נמצאה עמודת סטטוס</h3>";
                          return;
                     }
 
-                    log(`Status Column Found! ID: ${statusColumn.id}, Value: "${statusColumn.text}"`);
+                    log(`MATCH! Using column: ${statusColumn.id}`);
                     renderApp(statusColumn.text, itemId, boardId, statusColumn.id);
 
                 } catch (e) {
                     log("CRITICAL ERROR: " + e.message);
-                    log(JSON.stringify(e));
-                    document.getElementById('app').innerHTML = `<h3>שגיאה טכנית:</h3><p>${e.message}</p>`;
                 }
             });
         }
 
         function renderApp(status, itemId, boardId, columnId) {
             const container = document.getElementById('app');
-            const cleanStatus = status ? status.trim() : "";
-            const config = workflowConfig[cleanStatus];
-
+            const cleanStatus = status ? status.trim() : ""; // הגנה מפני 'null'
+            
+            // התאמה לתוויות שלך (מטפל גם בסטטוסים שכתבת בעברית אם צריך)
+            // כאן המיפוי הוא לפי מה שרואים בלוח שלך כרגע (Start, Working on it)
+            // אם הלוח בעברית, שנה את המפתחות למטה
+            let config = workflowConfig[cleanStatus];
+            
+            // גיבוי: אם הסטטוס ריק או לא מוכר
             if (!config) {
-                container.innerHTML = `
-                    <h3>סטטוס: "${cleanStatus}"</h3>
-                    <p>לא הוגדרה פעולה לסטטוס זה.</p>
-                `;
-                return;
+                 // נסיון למצוא התאמה "רכה"
+                 if (cleanStatus === "ממתין לאישור") config = workflowConfig["Start"]; // דוגמה
+                 else {
+                    container.innerHTML = `
+                        <h3>סטטוס נוכחי: "${cleanStatus}"</h3>
+                        <p>לא הוגדרה פעולה לסטטוס זה בקוד.</p>
+                    `;
+                    return;
+                 }
             }
 
             container.innerHTML = `
@@ -146,7 +152,6 @@
 
         window.handleAction = async function(newStatus, itemId, boardId, columnId, isPass) {
             const feedback = document.getElementById('feedback').value;
-            log(`Updating status to: ${newStatus}`);
             document.querySelector('.btn-group').innerHTML = '<p>מעדכן...</p>';
 
             try {
@@ -159,10 +164,9 @@
                     }
                 `);
                 
-                log("Update Success!");
                 monday.execute("notice", { message: "עודכן בהצלחה!", type: "success" });
             } catch (e) {
-                log("Update Failed: " + JSON.stringify(e));
+                log("Update Error: " + JSON.stringify(e));
                 monday.execute("notice", { message: "שגיאה בעדכון", type: "error" });
                 location.reload();
             }
