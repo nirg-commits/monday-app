@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Monday Workflow Ultimate Fixed</title>
+    <title>Monday Workflow Fixed Context</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monday-ui-react-core/dist/main.css" />
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     
@@ -26,23 +26,24 @@
             margin: 0 auto;
             overflow: hidden;
             position: relative;
-            min-height: 350px; /* גובה מינימלי כדי למנוע קפיצות */
+            min-height: 350px;
         }
 
-        /* כפתור הגדרות */
+        /* כפתור הגדרות - מוסתר כברירת מחדל */
         .settings-btn {
+            display: none; 
             position: absolute;
             top: 15px;
             left: 15px; 
-            background: rgba(255,255,255,0.8);
-            border: 1px solid #eee;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #ddd;
             border-radius: 50%;
             width: 32px; height: 32px;
             cursor: pointer;
             font-size: 18px;
             color: #666;
             z-index: 100;
-            display: flex; align-items: center; justify-content: center;
+            align-items: center; justify-content: center;
             transition: 0.2s;
         }
         .settings-btn:hover { color: var(--primary); background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -50,7 +51,6 @@
         /* ניהול מסכים */
         .panel { display: none; padding: 30px; }
         .panel.active { display: block; animation: fadeIn 0.3s ease-in-out; }
-        
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         /* אלמנטים של טופס */
@@ -61,36 +61,18 @@
         }
 
         .rule-box {
-            background: #fff;
-            border: 1px solid #e6e9ef;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            background: #fff; border: 1px solid #e6e9ef; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
         }
         
         .rule-header {
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-bottom: 1px solid #f0f0f0;
-            padding-bottom: 10px;
+            margin-bottom: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px;
         }
         .status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            color: white;
-            font-size: 13px;
-            font-weight: bold;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 6px 12px; border-radius: 20px; color: white; font-size: 13px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.2); box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .save-btn {
-            background: var(--primary);
-            color: white;
-            width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px;
+            background: var(--primary); color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px;
         }
         .save-btn:hover { background: #0060c0; }
 
@@ -98,12 +80,7 @@
         .action-area { text-align: center; margin-top: 10px; }
         
         .last-update-box {
-            background: #f0f4ff;
-            border-bottom: 1px solid #d0d4e4;
-            padding: 15px 20px;
-            font-size: 13px;
-            text-align: right;
-            margin: -30px -30px 20px -30px; /* הצמדה לקצוות */
+            background: #f0f4ff; border-bottom: 1px solid #d0d4e4; padding: 15px 20px; font-size: 13px; text-align: right; margin: -30px -30px 20px -30px;
         }
         .last-update-content {
             background: white; padding: 10px; border-radius: 6px; border: 1px solid #e6e9ef; max-height: 80px; overflow-y: auto; margin-top: 5px;
@@ -117,6 +94,10 @@
         .btn-action:hover { opacity: 0.9; transform: scale(1.02); }
         .btn-pass { background: var(--success); }
         .btn-fail { background: var(--error); }
+        
+        .loader {
+            display: flex; justify-content: center; align-items: center; height: 100%; color: #888; font-weight: bold;
+        }
 
     </style>
     <script src="https://cdn.jsdelivr.net/npm/monday-sdk-js/dist/main.js"></script>
@@ -125,7 +106,13 @@
 <body>
 
     <div class="card">
-        <button class="settings-btn" onclick="openSettings()" title="ערוך הגדרות">⚙️</button>
+        <button id="settingsBtn" class="settings-btn" onclick="openSettings()" title="ערוך הגדרות">⚙️</button>
+
+        <div id="loadingPanel" class="panel active">
+            <div class="loader">
+                <p>טוען נתונים...</p>
+            </div>
+        </div>
 
         <div id="settingsPanel" class="panel">
             <h2 style="margin-top:0;">⚙️ הגדרת תהליך</h2>
@@ -161,7 +148,7 @@
         </div>
         
         <div id="messagePanel" class="panel" style="text-align: center; padding-top: 100px;">
-            <h3 id="messageText" style="color:#666;">טוען נתונים...</h3>
+            <h3 id="messageText" style="color:#666;"></h3>
             <button id="configBtn" class="save-btn" style="width:auto; display:none;" onclick="openSettings()">פתח הגדרות</button>
         </div>
     </div>
@@ -172,8 +159,17 @@
         let boardColumns = []; 
         let currentConfig = {}; 
         let statusMetadata = []; 
+        let isAdmin = false; 
 
         async function init() {
+            try {
+                const meRes = await monday.api(`query { me { is_admin } }`);
+                isAdmin = meRes.data.me.is_admin;
+                if (isAdmin) {
+                    document.getElementById('settingsBtn').style.display = 'flex';
+                }
+            } catch (e) { console.error(e); }
+
             const storage = await monday.storage.instance.getItem('workflow_config');
             if (storage.data && storage.data.value) {
                 currentConfig = JSON.parse(storage.data.value);
@@ -184,15 +180,18 @@
                 const boardId = res.data.boardId;
                 
                 if (!currentConfig.columnId) {
-                    openSettings();
-                    loadBoardData(boardId);
+                    if (isAdmin) {
+                        openSettings();
+                        loadBoardData(boardId);
+                    } else {
+                        showPanel('messagePanel');
+                        document.getElementById('messageText').innerText = "האפליקציה טרם הוגדרה.";
+                    }
                 } else {
                     renderItemView(itemId, boardId);
                 }
             });
         }
-
-        // --- מעבר בין מסכים ---
 
         function showPanel(panelId) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -200,8 +199,8 @@
         }
 
         function openSettings() {
+            if (!isAdmin && currentConfig.columnId) return; 
             showPanel('settingsPanel');
-            // טעינת דאטה למקרה שהמשתמש פתח ידנית
             monday.get("context").then(res => loadBoardData(res.data.boardId));
         }
 
@@ -212,14 +211,12 @@
             const res = await monday.api(query);
             
             document.getElementById('loadingSettings').style.display = 'none';
-            
             if (!res.data || !res.data.boards) return;
 
             boardColumns = res.data.boards[0].columns.filter(col => col.type === 'color' || col.type === 'status');
             
             const select = document.getElementById('columnSelect');
             select.innerHTML = '<option value="">-- בחר עמודה --</option>';
-            
             boardColumns.forEach(col => {
                 const option = document.createElement('option');
                 option.value = col.id;
@@ -227,7 +224,6 @@
                 if (currentConfig.columnId === col.id) option.selected = true;
                 select.appendChild(option);
             });
-
             if (currentConfig.columnId) onColumnSelect();
         }
 
@@ -235,25 +231,15 @@
             const colId = document.getElementById('columnSelect').value;
             const container = document.getElementById('rulesContainer');
             const list = document.getElementById('rulesList');
-            
-            if (!colId) {
-                container.style.display = 'none';
-                return;
-            }
+            if (!colId) { container.style.display = 'none'; return; }
 
             const column = boardColumns.find(c => c.id === colId);
             const settings = JSON.parse(column.settings_str);
-            
             statusMetadata = [];
-            
-            // סטטוס ריק
-            statusMetadata.push({
-                index: null, label: "", displayLabel: "מצב התחלתי (ריק)", color: "#c4c4c4"
-            });
+            statusMetadata.push({ index: null, label: "", displayLabel: "מצב התחלתי (ריק)", color: "#c4c4c4" });
 
             const labelsColors = settings.labels_colors || {};
             const labelsOnly = settings.labels || {};
-            
             for (const [key, val] of Object.entries(labelsColors)) {
                 const labelText = val.label || labelsOnly[key]; 
                 const color = val.color || "#333";
@@ -273,10 +259,8 @@
                     <div class="rule-header">
                         <span class="status-badge" style="background:${meta.color};">${meta.displayLabel}</span>
                     </div>
-                    
                     <label>שאלה:</label>
                     <input type="text" class="q-input" data-status-key="${meta.label}" value="${savedRule.question || ''}" placeholder="הכנס שאלה...">
-                    
                     <div style="display:flex; gap:10px; margin-top:10px;">
                         <div style="flex:1">
                             <label>✅ עבר ל:</label>
@@ -306,7 +290,6 @@
             const colId = document.getElementById('columnSelect').value;
             const rules = {};
             const saveBtn = document.querySelector('.save-btn');
-            
             saveBtn.innerHTML = "שומר...";
 
             document.querySelectorAll('.rule-box').forEach(box => {
@@ -314,21 +297,15 @@
                 const question = box.querySelector('.q-input').value;
                 const pass = box.querySelector('.pass-select').value;
                 const fail = box.querySelector('.fail-select').value;
-
-                if (question) {
-                    rules[key] = { question, pass, fail };
-                }
+                if (question) rules[key] = { question, pass, fail };
             });
 
             const config = { columnId: colId, rules: rules };
             await monday.storage.instance.setItem('workflow_config', JSON.stringify(config));
             currentConfig = config;
             
-            monday.execute("notice", { message: "הגדרות נשמרו! מעבר לאפליקציה...", type: "success" });
-            
-            // --- התיקון הקריטי: מעבר מיידי למצב צפייה ---
+            monday.execute("notice", { message: "הגדרות נשמרו!", type: "success" });
             saveBtn.innerHTML = "שמור וסגור";
-            // קריאה לקונטקסט מחדש ורינדור האפליקציה
             const context = await monday.get("context");
             renderItemView(context.data.itemId, context.data.boardId);
         }
@@ -336,15 +313,8 @@
         // --- מסך ריצה (View) ---
 
         async function renderItemView(itemId, boardId) {
-            // אם אין קונפיגורציה, נציג הודעה
-            if (!currentConfig.columnId) {
-                showPanel('messagePanel');
-                document.getElementById('messageText').innerText = "לא הוגדרו הגדרות לאפליקציה";
-                document.getElementById('configBtn').style.display = 'inline-block';
-                return;
-            }
-
-            showPanel('viewPanel');
+            // לא מציגים כלום עד שיש נתונים, כדי למנוע קפיצות
+            // showPanel('loadingPanel'); // אופציונלי: אפשר להשאיר את הפאנל הקודם עד לטעינה
 
             const query = `
                 query { 
@@ -358,10 +328,21 @@
             
             try {
                 const res = await monday.api(query);
-                if (!res.data || !res.data.items.length) return;
+                if (!res.data || !res.data.items.length) {
+                    // טיפול במקרה נדיר שה-API נכשל
+                    return; 
+                }
 
                 const item = res.data.items[0];
-                const currentStatusText = item.column_values[0].text || "";
+                // בדיקה קריטית: האם יש בכלל עמודה כזו?
+                if (!item.column_values || item.column_values.length === 0) {
+                     showPanel('messagePanel');
+                     document.getElementById('messageText').innerText = "עמודת הסטטוס שנבחרה לא קיימת בלוח זה.";
+                     return;
+                }
+
+                // שליפת הטקסט המדויק. אם null, נהפוך למחרוזת ריקה
+                const currentStatusText = item.column_values[0].text ? item.column_values[0].text : "";
                 const lastUpdate = item.updates[0];
                 
                 // מציאת צבע
@@ -376,6 +357,8 @@
                     }
                 }
 
+                // רק עכשיו, כשיש נתונים, נעבור למסך התצוגה
+                showPanel('viewPanel');
                 renderHistory(lastUpdate);
 
                 const rule = currentConfig.rules[currentStatusText];
@@ -384,16 +367,18 @@
                 badgeDisplay.className = 'status-badge';
                 badgeDisplay.style.background = currentColor;
                 badgeDisplay.style.fontSize = '16px';
-                badgeDisplay.innerText = currentStatusText || "מצב התחלתי";
+                badgeDisplay.innerText = currentStatusText || "מצב התחלתי (ריק)";
 
+                // אם אין חוק לסטטוס הספציפי הזה
                 if (!rule) {
                     document.getElementById('statusTitle').innerText = "";
-                    document.getElementById('questionText').innerHTML = "לא הוגדרה פעולה לסטטוס זה.<br><small>לחץ על גלגל השיניים כדי להגדיר.</small>";
+                    document.getElementById('questionText').innerHTML = `לא הוגדרה פעולה לסטטוס: <b>${currentStatusText || "ריק"}</b>`;
                     document.getElementById('actionButtons').innerHTML = "";
                     document.querySelector('.editor-container').style.display = 'none';
                     return;
                 }
 
+                // אם יש חוק - נציג אותו
                 document.querySelector('.editor-container').style.display = 'block';
                 document.getElementById('statusTitle').innerText = ""; 
                 document.getElementById('questionText').innerText = rule.question;
@@ -421,10 +406,7 @@
 
         function renderHistory(update) {
             const container = document.getElementById('lastUpdateContainer');
-            if (!update) {
-                container.innerHTML = '';
-                return;
-            }
+            if (!update) { container.innerHTML = ''; return; }
             const date = new Date(update.created_at).toLocaleDateString('he-IL', {day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit'});
             container.innerHTML = `
                 <div class="last-update-box">
