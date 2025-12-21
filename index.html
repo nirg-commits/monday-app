@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Monday Workflow Final Fix</title>
+    <title>Monday Workflow Stable</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monday-ui-react-core/dist/main.css" />
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     
@@ -29,24 +29,25 @@
             min-height: 400px;
         }
 
-        /* כפתור הגדרות - מוסתר כברירת מחדל */
+        /* כפתור הגדרות */
         .settings-btn {
             display: none; 
             position: absolute;
             top: 15px;
             left: 15px; 
-            background: rgba(255,255,255,0.9);
-            border: 1px solid #ddd;
+            background: rgba(255,255,255,0.95);
+            border: 1px solid #d0d4e4;
             border-radius: 50%;
-            width: 32px; height: 32px;
+            width: 36px; height: 36px;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 20px;
             color: #666;
-            z-index: 100;
+            z-index: 200;
             align-items: center; justify-content: center;
             transition: 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .settings-btn:hover { color: var(--primary); background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .settings-btn:hover { color: var(--primary); transform: scale(1.1); }
 
         /* ניהול מסכים */
         .panel { display: none; padding: 30px; }
@@ -57,8 +58,9 @@
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px; }
         select, input[type="text"] {
-            width: 100%; padding: 10px; border: 1px solid #d0d4e4; border-radius: 8px; font-size: 14px; box-sizing: border-box;
+            width: 100%; padding: 10px; border: 1px solid #d0d4e4; border-radius: 8px; font-size: 14px; box-sizing: border-box; height: 42px; /* גובה קבוע למניעת רעידות */
         }
+        select:focus, input:focus { border-color: var(--primary); outline: none; }
 
         .rule-box {
             background: #fff; border: 1px solid #e6e9ef; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
@@ -71,10 +73,15 @@
             padding: 6px 12px; border-radius: 20px; color: white; font-size: 13px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.2); box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
+        .action-bar { margin-top: 20px; display: flex; gap: 10px; }
         .save-btn {
-            background: var(--primary); color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px;
+            background: var(--primary); color: white; flex: 2; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+        }
+        .cancel-btn {
+            background: #e6e9ef; color: #333; flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
         }
         .save-btn:hover { background: #0060c0; }
+        .cancel-btn:hover { background: #d0d4e4; }
 
         /* מסך ריצה (View Mode) */
         .action-area { text-align: center; margin-top: 10px; }
@@ -95,7 +102,6 @@
         .btn-pass { background: var(--success); }
         .btn-fail { background: var(--error); }
         
-        /* לואדר */
         .loader-panel {
             display: flex; justify-content: center; align-items: center; height: 300px;
         }
@@ -128,7 +134,11 @@
             <div id="rulesContainer" style="display:none;">
                 <p>2. הגדר מה קורה בכל שלב:</p>
                 <div id="rulesList"></div>
-                <button class="save-btn" onclick="saveConfiguration()">שמור הגדרות וחזור</button>
+                
+                <div class="action-bar">
+                    <button class="cancel-btn" onclick="cancelSettings()">ביטול וחזרה</button>
+                    <button class="save-btn" onclick="saveConfiguration()">שמור הגדרות</button>
+                </div>
             </div>
             
             <div id="loadingSettings" style="display:none; text-align:center; margin-top:10px; color:#888;">טוען נתוני לוח...</div>
@@ -163,11 +173,13 @@
         let currentConfig = {}; 
         let statusMetadata = []; 
         let isAdmin = false; 
+        
+        // --- הדגל החדש שפותר את הבעיה ---
+        let isEditMode = false; 
+        // --------------------------------
 
-        // אתחול האפליקציה
         async function init() {
             try {
-                // בדיקת אדמין
                 const meRes = await monday.api(`query { me { is_admin } }`);
                 isAdmin = meRes.data.me.is_admin;
                 if (isAdmin) {
@@ -175,22 +187,21 @@
                 }
             } catch (e) { console.error(e); }
 
-            // טעינת הגדרות שמורות
             const storage = await monday.storage.instance.getItem('workflow_config');
             if (storage.data && storage.data.value) {
                 currentConfig = JSON.parse(storage.data.value);
             }
 
-            // האזנה לקונטקסט
             monday.listen("context", res => {
                 const itemId = res.data.itemId;
                 const boardId = res.data.boardId;
                 
-                // לוגיקת ניווט ראשונית
+                // התיקון: אם אנחנו במצב עריכה, אל תעביר אותנו אוטומטית למסך הצפייה!
+                if (isEditMode) return;
+
                 if (!currentConfig.columnId) {
                     if (isAdmin) {
-                        openSettings();
-                        loadBoardData(boardId);
+                        openSettings(); // פתיחה אוטומטית רק בפעם הראשונה כשאין הגדרות
                     } else {
                         showPanel('messagePanel');
                         document.getElementById('messageText').innerText = "האפליקציה טרם הוגדרה.";
@@ -206,13 +217,43 @@
             document.getElementById(panelId).classList.add('active');
         }
 
+        // --- לוגיקת הגדרות ---
+
         function openSettings() {
-            if (!isAdmin && currentConfig.columnId) return; 
+            if (!isAdmin && currentConfig.columnId) return;
+            
+            // הרמת הדגל: אנחנו בעריכה, נא לא להפריע
+            isEditMode = true;
+            
             showPanel('settingsPanel');
-            monday.get("context").then(res => loadBoardData(res.data.boardId));
+            
+            // טעינת הנתונים תתבצע רק פעם אחת כדי למנוע רעידות
+            monday.get("context").then(res => {
+                 loadBoardData(res.data.boardId);
+            });
+        }
+
+        function cancelSettings() {
+            // הורדת הדגל וחזרה לשגרה
+            isEditMode = false;
+            
+            if (currentConfig.columnId) {
+                monday.get("context").then(res => renderItemView(res.data.itemId, res.data.boardId));
+            } else {
+                showPanel('messagePanel');
+                document.getElementById('messageText').innerText = "הגדרה בוטלה.";
+            }
         }
 
         async function loadBoardData(boardId) {
+            // מניעת טעינה כפולה אם כבר יש נתונים (מונע רעידות)
+            const select = document.getElementById('columnSelect');
+            if (select.options.length > 1) { 
+                // אם כבר טענו, רק נוודא שהערך הנכון נבחר
+                if (currentConfig.columnId) select.value = currentConfig.columnId;
+                return; 
+            }
+
             document.getElementById('loadingSettings').style.display = 'block';
             
             const query = `query { boards (ids: [${boardId}]) { columns { id title type settings_str } } }`;
@@ -223,8 +264,7 @@
 
             boardColumns = res.data.boards[0].columns.filter(col => col.type === 'color' || col.type === 'status');
             
-            const select = document.getElementById('columnSelect');
-            select.innerHTML = '<option value="">-- בחר עמודה --</option>';
+            select.innerHTML = '<option value="">-- בחר עמודה לניהול --</option>';
             boardColumns.forEach(col => {
                 const option = document.createElement('option');
                 option.value = col.id;
@@ -232,6 +272,8 @@
                 if (currentConfig.columnId === col.id) option.selected = true;
                 select.appendChild(option);
             });
+            
+            // הפעלה ראשונית של הטופס אם יש בחירה
             if (currentConfig.columnId) onColumnSelect();
         }
 
@@ -239,17 +281,23 @@
             const colId = document.getElementById('columnSelect').value;
             const container = document.getElementById('rulesContainer');
             const list = document.getElementById('rulesList');
-            if (!colId) { container.style.display = 'none'; return; }
+            
+            if (!colId) { 
+                container.style.display = 'none'; 
+                return; 
+            }
 
             const column = boardColumns.find(c => c.id === colId);
+            // הגנה מפני שגיאה אם העמודה נמחקה
+            if (!column) return;
+
             const settings = JSON.parse(column.settings_str);
             statusMetadata = [];
-            
-            // הוספת סטטוס ריק
             statusMetadata.push({ index: null, label: "", displayLabel: "מצב התחלתי (ריק)", color: "#c4c4c4" });
 
             const labelsColors = settings.labels_colors || {};
             const labelsOnly = settings.labels || {};
+            
             for (const [key, val] of Object.entries(labelsColors)) {
                 const labelText = val.label || labelsOnly[key]; 
                 const color = val.color || "#333";
@@ -269,15 +317,15 @@
                     <div class="rule-header">
                         <span class="status-badge" style="background:${meta.color};">${meta.displayLabel}</span>
                     </div>
-                    <label>שאלה:</label>
-                    <input type="text" class="q-input" data-status-key="${meta.label}" value="${savedRule.question || ''}" placeholder="הכנס שאלה...">
+                    <label>שאלה לשלב זה:</label>
+                    <input type="text" class="q-input" data-status-key="${meta.label}" value="${savedRule.question || ''}" placeholder="למשל: האם סיימת את המשימה?">
                     <div style="display:flex; gap:10px; margin-top:10px;">
                         <div style="flex:1">
-                            <label>✅ עבר ל:</label>
+                            <label>✅ בלחיצה על 'עבר':</label>
                             <select class="pass-select">${generateStatusOptions(meta.label, savedRule.pass)}</select>
                         </div>
                         <div style="flex:1">
-                            <label>❌ נכשל ל:</label>
+                            <label>❌ בלחיצה על 'נכשל':</label>
                             <select class="fail-select">${generateStatusOptions(meta.label, savedRule.fail)}</select>
                         </div>
                     </div>
@@ -287,7 +335,7 @@
         }
 
         function generateStatusOptions(currentLabel, selectedLabel) {
-            let html = '<option value="">-- ללא שינוי --</option>';
+            let html = '<option value="">-- הישאר באותו סטטוס --</option>';
             statusMetadata.forEach(meta => {
                 if (meta.label === currentLabel || meta.index === null) return;
                 const isSelected = meta.label === selectedLabel ? 'selected' : '';
@@ -296,39 +344,43 @@
             return html;
         }
 
-        // --- פונקציית שמירה עם תיקון המעבר ---
         async function saveConfiguration() {
             const colId = document.getElementById('columnSelect').value;
             const rules = {};
             const saveBtn = document.querySelector('.save-btn');
-            saveBtn.innerHTML = "שומר נתונים...";
+            
+            saveBtn.innerHTML = "שומר...";
 
             document.querySelectorAll('.rule-box').forEach(box => {
                 const key = box.querySelector('.q-input').dataset.statusKey; 
                 const question = box.querySelector('.q-input').value;
                 const pass = box.querySelector('.pass-select').value;
                 const fail = box.querySelector('.fail-select').value;
-                if (question) rules[key] = { question, pass, fail };
+                
+                // שומרים גם אם השאלה ריקה, כדי לאפשר איפוס
+                if (question || pass || fail) {
+                     rules[key] = { question, pass, fail };
+                }
             });
 
             const config = { columnId: colId, rules: rules };
             
-            // שמירה
             await monday.storage.instance.setItem('workflow_config', JSON.stringify(config));
             currentConfig = config;
             
-            monday.execute("notice", { message: "הגדרות נשמרו!", type: "success" });
-            saveBtn.innerHTML = "שמור הגדרות וחזור";
+            monday.execute("notice", { message: "הגדרות נשמרו בהצלחה!", type: "success" });
+            saveBtn.innerHTML = "שמור הגדרות";
 
-            // --- התיקון: מעבר מיידי למצב צפייה ---
-            showPanel('loadingPanel'); // הצגת מסך טעינה לרגע
+            // הורדת הדגל ומעבר לתצוגה
+            isEditMode = false;
             
-            // קבלת הקונטקסט מחדש כדי לדעת איזה אייטם לרנדר
+            showPanel('loadingPanel');
             const context = await monday.get("context");
             renderItemView(context.data.itemId, context.data.boardId);
         }
 
-        // --- מסך ריצה (View) ---
+        // --- מסך תצוגה ---
+
         async function renderItemView(itemId, boardId) {
             const query = `
                 query { 
@@ -342,12 +394,13 @@
             
             try {
                 const res = await monday.api(query);
-                if (!res.data || !res.data.items.length) return; // לא מצא נתונים
+                if (!res.data || !res.data.items.length) return;
 
                 const item = res.data.items[0];
                 const currentStatusText = item.column_values[0].text || "";
                 const lastUpdate = item.updates[0];
                 
+                // חילוץ צבעים
                 const colSettings = JSON.parse(res.data.boards[0].columns[0].settings_str);
                 const labelsColors = colSettings.labels_colors || {};
                 let currentColor = "#c4c4c4"; 
@@ -359,7 +412,6 @@
                     }
                 }
 
-                // יש לנו את כל הנתונים - עכשיו מציגים את הפאנל
                 showPanel('viewPanel');
                 renderHistory(lastUpdate);
 
@@ -395,8 +447,8 @@
 
                 const btnsDiv = document.getElementById('actionButtons');
                 btnsDiv.innerHTML = `
-                    <button class="btn-action btn-fail" onclick="executeAction('${rule.fail}', '${itemId}', '${boardId}', false)">❌ ${rule.fail || 'ללא'}</button>
-                    <button class="btn-action btn-pass" onclick="executeAction('${rule.pass}', '${itemId}', '${boardId}', true)">✅ ${rule.pass || 'ללא'}</button>
+                    <button class="btn-action btn-fail" onclick="executeAction('${rule.fail}', '${itemId}', '${boardId}', false)">❌ ${rule.fail || 'ללא שינוי'}</button>
+                    <button class="btn-action btn-pass" onclick="executeAction('${rule.pass}', '${itemId}', '${boardId}', true)">✅ ${rule.pass || 'ללא שינוי'}</button>
                 `;
 
             } catch (e) {
