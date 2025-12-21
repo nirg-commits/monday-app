@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Monday Workflow Fixed Context</title>
+    <title>Monday Workflow Final Fix</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monday-ui-react-core/dist/main.css" />
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     
@@ -26,7 +26,7 @@
             margin: 0 auto;
             overflow: hidden;
             position: relative;
-            min-height: 350px;
+            min-height: 400px;
         }
 
         /* כפתור הגדרות - מוסתר כברירת מחדל */
@@ -53,7 +53,7 @@
         .panel.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* אלמנטים של טופס */
+        /* טפסים */
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px; }
         select, input[type="text"] {
@@ -95,9 +95,12 @@
         .btn-pass { background: var(--success); }
         .btn-fail { background: var(--error); }
         
-        .loader {
-            display: flex; justify-content: center; align-items: center; height: 100%; color: #888; font-weight: bold;
+        /* לואדר */
+        .loader-panel {
+            display: flex; justify-content: center; align-items: center; height: 300px;
         }
+        .loader-text { font-size: 16px; color: #888; font-weight: bold; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
     </style>
     <script src="https://cdn.jsdelivr.net/npm/monday-sdk-js/dist/main.js"></script>
@@ -109,8 +112,8 @@
         <button id="settingsBtn" class="settings-btn" onclick="openSettings()" title="ערוך הגדרות">⚙️</button>
 
         <div id="loadingPanel" class="panel active">
-            <div class="loader">
-                <p>טוען נתונים...</p>
+            <div class="loader-panel">
+                <div class="loader-text">טוען נתונים...</div>
             </div>
         </div>
 
@@ -125,10 +128,10 @@
             <div id="rulesContainer" style="display:none;">
                 <p>2. הגדר מה קורה בכל שלב:</p>
                 <div id="rulesList"></div>
-                <button class="save-btn" onclick="saveConfiguration()">שמור וסגור</button>
+                <button class="save-btn" onclick="saveConfiguration()">שמור הגדרות וחזור</button>
             </div>
             
-            <div id="loadingSettings" style="display:none; text-align:center; color:#888;">טוען נתוני לוח...</div>
+            <div id="loadingSettings" style="display:none; text-align:center; margin-top:10px; color:#888;">טוען נתוני לוח...</div>
         </div>
 
         <div id="viewPanel" class="panel">
@@ -161,8 +164,10 @@
         let statusMetadata = []; 
         let isAdmin = false; 
 
+        // אתחול האפליקציה
         async function init() {
             try {
+                // בדיקת אדמין
                 const meRes = await monday.api(`query { me { is_admin } }`);
                 isAdmin = meRes.data.me.is_admin;
                 if (isAdmin) {
@@ -170,15 +175,18 @@
                 }
             } catch (e) { console.error(e); }
 
+            // טעינת הגדרות שמורות
             const storage = await monday.storage.instance.getItem('workflow_config');
             if (storage.data && storage.data.value) {
                 currentConfig = JSON.parse(storage.data.value);
             }
 
+            // האזנה לקונטקסט
             monday.listen("context", res => {
                 const itemId = res.data.itemId;
                 const boardId = res.data.boardId;
                 
+                // לוגיקת ניווט ראשונית
                 if (!currentConfig.columnId) {
                     if (isAdmin) {
                         openSettings();
@@ -236,6 +244,8 @@
             const column = boardColumns.find(c => c.id === colId);
             const settings = JSON.parse(column.settings_str);
             statusMetadata = [];
+            
+            // הוספת סטטוס ריק
             statusMetadata.push({ index: null, label: "", displayLabel: "מצב התחלתי (ריק)", color: "#c4c4c4" });
 
             const labelsColors = settings.labels_colors || {};
@@ -286,11 +296,12 @@
             return html;
         }
 
+        // --- פונקציית שמירה עם תיקון המעבר ---
         async function saveConfiguration() {
             const colId = document.getElementById('columnSelect').value;
             const rules = {};
             const saveBtn = document.querySelector('.save-btn');
-            saveBtn.innerHTML = "שומר...";
+            saveBtn.innerHTML = "שומר נתונים...";
 
             document.querySelectorAll('.rule-box').forEach(box => {
                 const key = box.querySelector('.q-input').dataset.statusKey; 
@@ -301,21 +312,24 @@
             });
 
             const config = { columnId: colId, rules: rules };
+            
+            // שמירה
             await monday.storage.instance.setItem('workflow_config', JSON.stringify(config));
             currentConfig = config;
             
             monday.execute("notice", { message: "הגדרות נשמרו!", type: "success" });
-            saveBtn.innerHTML = "שמור וסגור";
+            saveBtn.innerHTML = "שמור הגדרות וחזור";
+
+            // --- התיקון: מעבר מיידי למצב צפייה ---
+            showPanel('loadingPanel'); // הצגת מסך טעינה לרגע
+            
+            // קבלת הקונטקסט מחדש כדי לדעת איזה אייטם לרנדר
             const context = await monday.get("context");
             renderItemView(context.data.itemId, context.data.boardId);
         }
 
         // --- מסך ריצה (View) ---
-
         async function renderItemView(itemId, boardId) {
-            // לא מציגים כלום עד שיש נתונים, כדי למנוע קפיצות
-            // showPanel('loadingPanel'); // אופציונלי: אפשר להשאיר את הפאנל הקודם עד לטעינה
-
             const query = `
                 query { 
                     items (ids: [${itemId}]) { 
@@ -328,24 +342,12 @@
             
             try {
                 const res = await monday.api(query);
-                if (!res.data || !res.data.items.length) {
-                    // טיפול במקרה נדיר שה-API נכשל
-                    return; 
-                }
+                if (!res.data || !res.data.items.length) return; // לא מצא נתונים
 
                 const item = res.data.items[0];
-                // בדיקה קריטית: האם יש בכלל עמודה כזו?
-                if (!item.column_values || item.column_values.length === 0) {
-                     showPanel('messagePanel');
-                     document.getElementById('messageText').innerText = "עמודת הסטטוס שנבחרה לא קיימת בלוח זה.";
-                     return;
-                }
-
-                // שליפת הטקסט המדויק. אם null, נהפוך למחרוזת ריקה
-                const currentStatusText = item.column_values[0].text ? item.column_values[0].text : "";
+                const currentStatusText = item.column_values[0].text || "";
                 const lastUpdate = item.updates[0];
                 
-                // מציאת צבע
                 const colSettings = JSON.parse(res.data.boards[0].columns[0].settings_str);
                 const labelsColors = colSettings.labels_colors || {};
                 let currentColor = "#c4c4c4"; 
@@ -357,7 +359,7 @@
                     }
                 }
 
-                // רק עכשיו, כשיש נתונים, נעבור למסך התצוגה
+                // יש לנו את כל הנתונים - עכשיו מציגים את הפאנל
                 showPanel('viewPanel');
                 renderHistory(lastUpdate);
 
@@ -369,7 +371,6 @@
                 badgeDisplay.style.fontSize = '16px';
                 badgeDisplay.innerText = currentStatusText || "מצב התחלתי (ריק)";
 
-                // אם אין חוק לסטטוס הספציפי הזה
                 if (!rule) {
                     document.getElementById('statusTitle').innerText = "";
                     document.getElementById('questionText').innerHTML = `לא הוגדרה פעולה לסטטוס: <b>${currentStatusText || "ריק"}</b>`;
@@ -378,7 +379,6 @@
                     return;
                 }
 
-                // אם יש חוק - נציג אותו
                 document.querySelector('.editor-container').style.display = 'block';
                 document.getElementById('statusTitle').innerText = ""; 
                 document.getElementById('questionText').innerText = rule.question;
