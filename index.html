@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Monday Workflow Checkbox UX</title>
+    <title>Monday Workflow Timeline</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monday-ui-react-core/dist/main.css" />
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     
@@ -15,136 +15,149 @@
             --surface: #ffffff;
             --text: #323338;
             --border: #d0d4e4;
+            --gray-bg: #f7f9fa;
         }
 
         body { font-family: "Figtree", "Roboto", sans-serif; padding: 20px; background: var(--bg); color: var(--text); margin: 0; }
         
-        .card {
-            background: var(--surface);
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        .main-container {
             max-width: 700px;
             margin: 0 auto;
-            position: relative;
-            min-height: 400px;
-            /* הסרת overflow:hidden כדי לאפשר גלילה טבעית של הדף */
-            overflow: visible; 
-            padding-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 95vh; /* ניצול גובה המסך */
         }
 
-        /* כפתור הגדרות */
-        .settings-btn {
-            display: none; 
-            position: absolute;
-            top: 20px;
-            left: 20px; 
-            background: rgba(255,255,255,0.9);
-            border: 1px solid #ddd;
-            border-radius: 50%;
-            width: 36px; height: 36px;
-            cursor: pointer;
-            font-size: 20px;
-            color: #666;
-            z-index: 200;
-            align-items: center; justify-content: center;
-            transition: 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        /* --- כרטיס ההיסטוריה (למעלה) --- */
+        .history-card {
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            flex: 1; /* תופס את המקום הפנוי */
+            overflow-y: auto; /* גלילה פנימית אם יש הרבה עדכונים */
+            padding: 20px;
+            border: 1px solid #fff;
         }
-        .settings-btn:hover { color: var(--primary); transform: scale(1.1); background: #fff; }
+
+        .history-title {
+            font-size: 14px; color: #666; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;
+        }
+
+        .update-item {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            align-items: flex-start;
+        }
+
+        .user-avatar img {
+            width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid #eee;
+        }
+        .user-avatar-placeholder {
+            width: 36px; height: 36px; border-radius: 50%; background: #0073ea; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+        }
+
+        .update-content-wrapper {
+            flex: 1;
+        }
+
+        .update-header {
+            display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px;
+        }
+        .user-name { font-weight: bold; color: #333; }
+        .update-time { color: #888; }
+
+        .update-bubble {
+            background: var(--gray-bg);
+            border: 1px solid #e6e9ef;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #323338;
+            position: relative;
+        }
+        /* משולש קטן לבועה */
+        .update-bubble::before {
+            content: ""; position: absolute; top: 10px; right: -6px; width: 10px; height: 10px;
+            background: var(--gray-bg); border-top: 1px solid #e6e9ef; border-right: 1px solid #e6e9ef;
+            transform: rotate(45deg);
+        }
+
+        /* --- כרטיס הפעולה (למטה) --- */
+        .action-card {
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.05); /* צללית כלפי מעלה */
+            padding: 25px;
+            position: relative;
+            /* גובה קבוע לאזור הפעולה כדי שיהיה יציב */
+            flex-shrink: 0; 
+        }
+
+        /* --- כפתור הגדרות --- */
+        .settings-btn {
+            display: none; /* נחשף ב-JS לאדמין */
+            position: absolute; top: 15px; left: 15px; 
+            background: #fff; border: 1px solid #ddd; border-radius: 50%;
+            width: 32px; height: 32px; cursor: pointer; font-size: 18px; color: #666; z-index: 200;
+            align-items: center; justify-content: center; transition: 0.2s;
+        }
+        .settings-btn:hover { color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
         /* ניהול מסכים */
-        .panel { display: none; padding: 30px; }
-        .panel.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        .panel { display: none; }
+        .panel.active { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* --- עיצוב הגדרות החדש --- */
+        /* --- הגדרות --- */
+        #settingsPanel {
+             background: white; padding: 30px; border-radius: 12px; height: 100%; overflow-y: auto;
+        }
+
         .form-group { margin-bottom: 25px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px; }
         select, input[type="text"] {
             width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; box-sizing: border-box; height: 42px;
         }
-        select:focus, input:focus { border-color: var(--primary); outline: none; }
-
-        /* קופסת חוק (Rule Box) */
+        
         .rule-item {
             background: #fff; border: 1px solid #e6e9ef; border-radius: 8px; margin-bottom: 12px;
             transition: all 0.2s; overflow: hidden;
         }
         .rule-item.active { border-color: var(--primary); box-shadow: 0 2px 8px rgba(0,115,234,0.1); }
-
         .rule-header {
-            padding: 12px 15px;
-            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 15px; display: flex; align-items: center; justify-content: space-between;
             background: #fdfdfd; cursor: pointer;
         }
-        
-        .rule-header-left { display: flex; align-items: center; gap: 12px; }
+        .rule-body { padding: 15px; border-top: 1px solid #eee; background: #fff; display: none; }
+        .rule-item.active .rule-body { display: block; }
 
-        /* מתג (Toggle Switch) */
-        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; margin-left: 10px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #ccc; transition: .4s; border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
-            background-color: white; transition: .4s; border-radius: 50%;
-        }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; border-radius: 34px; transition: .4s; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .4s; }
         input:checked + .slider { background-color: var(--primary); }
         input:checked + .slider:before { transform: translateX(18px); }
 
-        /* אזור התוכן הנפתח */
-        .rule-body {
-            padding: 15px; border-top: 1px solid #eee; background: #fff;
-            display: none; /* מוסתר כברירת מחדל */
-        }
-        .rule-item.active .rule-body { display: block; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; color: white; font-size: 12px; font-weight: bold; }
+        .save-btn { background: var(--primary); color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px;}
 
-        .status-badge {
-            padding: 4px 10px; border-radius: 20px; color: white; font-size: 13px; font-weight: bold;
-        }
-
-        .action-bar { margin-top: 25px; display: flex; gap: 10px; padding-top: 20px; border-top: 1px solid #eee; }
-        .save-btn { background: var(--primary); color: white; flex: 2; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .cancel-btn { background: #f0f0f0; color: #333; flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .save-btn:hover { background: #0060c0; }
-
-        /* --- מסך ריצה (View Mode) --- */
-        
-        /* היסטוריה - עיצוב נקי ומשולב */
-        .history-section {
-            padding: 0 20px 20px 20px;
-            margin-bottom: 20px;
-            border-bottom: 1px dashed #e0e0e0;
-        }
-        .history-header {
-            display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; margin-bottom: 8px;
-        }
-        .history-content {
-            font-size: 14px; line-height: 1.5; color: #333;
-            /* ביטול הגבלת גובה וגלילה פנימית */
-            max-height: none; overflow: visible;
-            background: transparent; padding: 0; border: none;
-        }
-
-        .action-area { text-align: center; padding: 0 30px; }
-        
-        .editor-container { text-align: right; margin-bottom: 20px; background: #fff; border: 1px solid var(--border); border-radius: 8px; }
+        /* --- אזור פעולה --- */
+        .action-content { text-align: center; }
+        .editor-container { text-align: right; margin-bottom: 15px; background: #fff; border: 1px solid var(--border); border-radius: 8px; }
         .ql-toolbar { border-top-left-radius: 8px; border-top-right-radius: 8px; border: none; border-bottom: 1px solid #eee; }
         .ql-container { border: none; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
-        .ql-editor { direction: rtl; text-align: right; min-height: 100px; font-size: 15px; }
-        
-        .btn-group { display: flex; gap: 15px; margin-top: 25px; }
+        .ql-editor { direction: rtl; text-align: right; min-height: 80px; font-size: 15px; }
+
+        .btn-group { display: flex; gap: 15px; margin-top: 20px; }
         .btn-action { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; font-size: 16px; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .btn-action:hover { opacity: 0.9; transform: translateY(-2px); }
         .btn-pass { background: var(--success); }
         .btn-fail { background: var(--error); }
         
-        /* לואדר */
-        .loader-panel { display: flex; justify-content: center; align-items: center; height: 300px; }
-        .loader-text { font-size: 16px; color: #888; font-weight: bold; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        .loader-panel { display: flex; justify-content: center; align-items: center; height: 100%; font-weight: bold; color: #888;}
 
     </style>
     <script src="https://cdn.jsdelivr.net/npm/monday-sdk-js/dist/main.js"></script>
@@ -152,13 +165,12 @@
 </head>
 <body>
 
-    <div class="card">
+    <div class="main-container">
+        
         <button id="settingsBtn" class="settings-btn" onclick="openSettings()" title="ערוך הגדרות">⚙️</button>
 
-        <div id="loadingPanel" class="panel active">
-            <div class="loader-panel">
-                <div class="loader-text">טוען נתונים...</div>
-            </div>
+        <div id="loadingPanel" class="panel active" style="height:100%;">
+            <div class="loader-panel">טוען נתונים...</div>
         </div>
 
         <div id="settingsPanel" class="panel">
@@ -173,34 +185,41 @@
                 <p>2. סמן את השלבים שברצונך לנהל:</p>
                 <div id="rulesList"></div>
                 
-                <div class="action-bar">
-                    <button class="cancel-btn" onclick="cancelSettings()">ביטול</button>
-                    <button class="save-btn" onclick="saveConfiguration()">שמור הגדרות</button>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="save-btn" style="background:#eee; color:#333; flex:1;" onclick="cancelSettings()">ביטול</button>
+                    <button class="save-btn" style="flex:2;" onclick="saveConfiguration()">שמור הגדרות</button>
                 </div>
             </div>
-            <div id="loadingSettings" style="display:none; text-align:center; margin-top:10px; color:#888;">טוען נתונים...</div>
+            <div id="loadingSettings" style="display:none; text-align:center; margin-top:10px;">טוען נתונים...</div>
         </div>
 
-        <div id="viewPanel" class="panel" style="padding: 0;">
-            <div id="historySection" class="history-section"></div>
+        <div id="viewPanel" class="panel" style="display:none; flex-direction: column; height: 100%;">
             
-            <div class="action-area">
-                <div id="statusBadgeDisplay" style="display: inline-block; margin-bottom: 10px; margin-top: 20px;"></div>
-                <h2 id="statusTitle" style="margin-top:0; font-size: 22px; margin-bottom: 10px;"></h2>
-                <p id="questionText" style="color:#555; font-size:18px; margin-bottom: 25px;"></p>
-                
-                <div class="editor-container">
-                    <div id="quill-editor"></div>
-                </div>
+            <div class="history-card">
+                <div class="history-title">📜 היסטוריית עדכונים</div>
+                <div id="historyList">
+                    </div>
+            </div>
 
-                <div class="btn-group" id="actionButtons"></div>
+            <div class="action-card">
+                <div class="action-content">
+                    <div id="statusBadgeDisplay" style="display: inline-block; margin-bottom: 10px;"></div>
+                    <p id="questionText" style="color:#333; font-weight:500; font-size:18px; margin-bottom: 20px; margin-top:0;"></p>
+                    
+                    <div class="editor-container">
+                        <div id="quill-editor"></div>
+                    </div>
+
+                    <div class="btn-group" id="actionButtons"></div>
+                </div>
             </div>
         </div>
-        
+
         <div id="messagePanel" class="panel" style="text-align: center; padding-top: 100px;">
             <h3 id="messageText" style="color:#666;"></h3>
             <button id="configBtn" class="save-btn" style="width:auto; display:none;" onclick="openSettings()">פתח הגדרות</button>
         </div>
+
     </div>
 
     <script>
@@ -245,12 +264,22 @@
         }
 
         function showPanel(panelId) {
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            document.getElementById(panelId).classList.add('active');
+            document.querySelectorAll('.panel').forEach(p => {
+                p.style.display = 'none';
+                p.classList.remove('active');
+            });
+            
+            const p = document.getElementById(panelId);
+            // אם זה viewPanel נשתמש ב-flex כדי לסדר את המבנה
+            if (panelId === 'viewPanel') {
+                p.style.display = 'flex';
+            } else {
+                p.style.display = 'block';
+            }
+            p.classList.add('active');
         }
 
         // --- הגדרות ---
-
         function openSettings() {
             if (!isAdmin && currentConfig.columnId) return;
             isEditMode = true;
@@ -269,29 +298,22 @@
         }
 
         async function loadBoardData(boardId) {
-            // תמיד טוען מחדש כדי לקבל סטטוסים מעודכנים
             document.getElementById('loadingSettings').style.display = 'block';
-            
             const query = `query { boards (ids: [${boardId}]) { columns { id title type settings_str } } }`;
             const res = await monday.api(query);
-            
             document.getElementById('loadingSettings').style.display = 'none';
             if (!res.data || !res.data.boards) return;
 
             boardColumns = res.data.boards[0].columns.filter(col => col.type === 'color' || col.type === 'status');
-            
             const select = document.getElementById('columnSelect');
             const currentVal = select.value || currentConfig.columnId || "";
-            
             select.innerHTML = '<option value="">-- בחר עמודה לניהול --</option>';
             boardColumns.forEach(col => {
                 const option = document.createElement('option');
-                option.value = col.id;
-                option.text = col.title;
+                option.value = col.id; option.text = col.title;
                 if (currentVal === col.id) option.selected = true;
                 select.appendChild(option);
             });
-            
             if (select.value) onColumnSelect();
         }
 
@@ -299,16 +321,12 @@
             const colId = document.getElementById('columnSelect').value;
             const container = document.getElementById('rulesContainer');
             const list = document.getElementById('rulesList');
-            
             if (!colId) { container.style.display = 'none'; return; }
 
             const column = boardColumns.find(c => c.id === colId);
             if (!column) return;
-
             const settings = JSON.parse(column.settings_str);
             statusMetadata = [];
-            
-            // תמיד בונה מחדש את הרשימה המלאה מהלוח
             statusMetadata.push({ index: null, label: "", displayLabel: "מצב התחלתי (ריק)", color: "#c4c4c4" });
 
             const labelsColors = settings.labels_colors || {};
@@ -325,7 +343,6 @@
             list.innerHTML = '';
 
             statusMetadata.forEach(meta => {
-                // בדיקה אם קיים חוק שמור לסטטוס זה
                 const savedRule = currentConfig.rules ? currentConfig.rules[meta.label] : null;
                 const isActive = !!savedRule;
 
@@ -333,29 +350,21 @@
                 div.className = `rule-item ${isActive ? 'active' : ''}`;
                 div.innerHTML = `
                     <div class="rule-header" onclick="toggleRule(this)">
-                        <div class="rule-header-left">
+                        <div style="display:flex; align-items:center;">
                             <label class="switch">
                                 <input type="checkbox" class="enable-check" ${isActive ? 'checked' : ''} onchange="toggleRuleCheckbox(this)">
                                 <span class="slider"></span>
                             </label>
-                            <span class="status-badge" style="background:${meta.color};">${meta.displayLabel}</span>
+                            <span class="status-badge" style="background:${meta.color}; margin-right:12px;">${meta.displayLabel}</span>
                         </div>
-                        <span style="font-size:12px; color:#888;">${isActive ? 'מוגדר' : 'לא מוגדר'}</span>
+                        <span style="font-size:12px; color:#888;">${isActive ? 'פעיל' : 'לא פעיל'}</span>
                     </div>
-                    
                     <div class="rule-body">
-                        <label>השאלה שתוצג למשתמש: <span style="color:red">*</span></label>
+                        <label>השאלה למשתמש <span style="color:red">*</span></label>
                         <input type="text" class="q-input" data-status-key="${meta.label}" value="${savedRule ? savedRule.question : ''}" placeholder="הכנס שאלה...">
-                        
                         <div style="display:flex; gap:15px; margin-top:15px;">
-                            <div style="flex:1">
-                                <label>✅ מעבר ל:</label>
-                                <select class="pass-select">${generateStatusOptions(meta.label, savedRule ? savedRule.pass : '')}</select>
-                            </div>
-                            <div style="flex:1">
-                                <label>❌ מעבר ל:</label>
-                                <select class="fail-select">${generateStatusOptions(meta.label, savedRule ? savedRule.fail : '')}</select>
-                            </div>
+                            <div style="flex:1"><label>✅ בלחיצה על 'עבר':</label><select class="pass-select">${generateStatusOptions(meta.label, savedRule ? savedRule.pass : '')}</select></div>
+                            <div style="flex:1"><label>❌ בלחיצה על 'נכשל':</label><select class="fail-select">${generateStatusOptions(meta.label, savedRule ? savedRule.fail : '')}</select></div>
                         </div>
                     </div>
                 `;
@@ -363,32 +372,22 @@
             });
         }
 
-        // פונקציות עזר ל-UX של הצ'קבוקס
         window.toggleRuleCheckbox = function(checkbox) {
             const item = checkbox.closest('.rule-item');
             const statusText = item.querySelector('.rule-header span:last-child');
-            
-            if (checkbox.checked) {
-                item.classList.add('active');
-                statusText.innerText = 'מוגדר (בעריכה)';
-            } else {
-                item.classList.remove('active');
-                statusText.innerText = 'לא מוגדר';
-            }
+            if (checkbox.checked) { item.classList.add('active'); statusText.innerText = 'פעיל (בעריכה)'; }
+            else { item.classList.remove('active'); statusText.innerText = 'לא פעיל'; }
         }
         
-        // לחיצה על הכותרת מדליקה/מכבה את הסטטוס
         window.toggleRule = function(header) {
-            // מניעת כפילות אם לחצו ישירות על המתג
             if (event.target.tagName === 'INPUT' || event.target.className.includes('slider')) return;
-            
             const checkbox = header.querySelector('.enable-check');
             checkbox.checked = !checkbox.checked;
             toggleRuleCheckbox(checkbox);
         }
 
         function generateStatusOptions(currentLabel, selectedLabel) {
-            let html = '<option value="">-- ללא שינוי --</option>';
+            let html = '<option value="">-- הישאר באותו סטטוס --</option>';
             statusMetadata.forEach(meta => {
                 if (meta.label === currentLabel || meta.index === null) return;
                 const isSelected = meta.label === selectedLabel ? 'selected' : '';
@@ -400,27 +399,18 @@
         async function saveConfiguration() {
             const colId = document.getElementById('columnSelect').value;
             const rules = {};
-            const saveBtn = document.querySelector('.save-btn');
-            
             let isValid = true;
             
-            // איסוף נתונים רק מסטטוסים מסומנים
             document.querySelectorAll('.rule-item').forEach(item => {
                 const checkbox = item.querySelector('.enable-check');
-                if (!checkbox.checked) return; // דלג אם לא מסומן
-
+                if (!checkbox.checked) return;
                 const key = item.querySelector('.q-input').dataset.statusKey; 
                 const question = item.querySelector('.q-input').value.trim();
                 const pass = item.querySelector('.pass-select').value;
                 const fail = item.querySelector('.fail-select').value;
                 
-                if (!question) {
-                    item.style.borderColor = 'red';
-                    isValid = false;
-                } else {
-                    item.style.borderColor = '#e6e9ef';
-                    rules[key] = { question, pass, fail };
-                }
+                if (!question) { item.style.borderColor = 'red'; isValid = false; }
+                else { item.style.borderColor = '#e6e9ef'; rules[key] = { question, pass, fail }; }
             });
 
             if (!isValid) {
@@ -428,15 +418,11 @@
                 return;
             }
 
-            saveBtn.innerHTML = "שומר...";
             const config = { columnId: colId, rules: rules };
-            
             await monday.storage.instance.setItem('workflow_config', JSON.stringify(config));
             currentConfig = config;
+            monday.execute("notice", { message: "נשמר!", type: "success" });
             
-            monday.execute("notice", { message: "נשמר בהצלחה!", type: "success" });
-            saveBtn.innerHTML = "שמור הגדרות";
-
             isEditMode = false;
             showPanel('loadingPanel');
             const context = await monday.get("context");
@@ -446,11 +432,12 @@
         // --- תצוגה ---
 
         async function renderItemView(itemId, boardId) {
+            // שליפת עדכונים רבים (50) כדי לבנות היסטוריה
             const query = `
                 query { 
                     items (ids: [${itemId}]) { 
                         column_values (ids: ["${currentConfig.columnId}"]) { text } 
-                        updates (limit: 1) { body created_at creator { name photo_thumb } }
+                        updates (limit: 50) { body created_at creator { name photo_thumb } }
                     }
                     boards (ids: [${boardId}]) { columns (ids: ["${currentConfig.columnId}"]) { settings_str } }
                 }
@@ -462,68 +449,78 @@
 
                 const item = res.data.items[0];
                 const currentStatusText = item.column_values[0].text || "";
-                const lastUpdate = item.updates[0];
+                const updates = item.updates || [];
                 
+                // צבע סטטוס נוכחי
                 const colSettings = JSON.parse(res.data.boards[0].columns[0].settings_str);
                 const labelsColors = colSettings.labels_colors || {};
                 let currentColor = "#c4c4c4"; 
                 for (const val of Object.values(labelsColors)) {
-                    if (val.label === currentStatusText) {
-                        currentColor = val.color;
-                        break;
-                    }
+                    if (val.label === currentStatusText) { currentColor = val.color; break; }
                 }
 
                 showPanel('viewPanel');
                 
-                // רנדור היסטוריה משולבת
-                const histSection = document.getElementById('historySection');
-                if (lastUpdate) {
-                    const date = new Date(lastUpdate.created_at).toLocaleDateString('he-IL', {day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit'});
-                    histSection.innerHTML = `
-                        <div class="history-header">
-                            <img src="${lastUpdate.creator.photo_thumb}" style="width:24px; height:24px; border-radius:50%;"> 
-                            <strong>${lastUpdate.creator.name}</strong> 
-                            <span>• ${date}</span>
-                        </div>
-                        <div class="history-content">${lastUpdate.body}</div>
-                    `;
-                    histSection.style.display = 'block';
+                // --- בניית ההיסטוריה ---
+                const historyList = document.getElementById('historyList');
+                historyList.innerHTML = '';
+                
+                if (updates.length === 0) {
+                    historyList.innerHTML = '<div style="text-align:center; color:#999; margin-top:20px;">אין היסטוריית שינויים</div>';
                 } else {
-                    histSection.style.display = 'none';
+                    updates.forEach(update => {
+                        const date = new Date(update.created_at).toLocaleDateString('he-IL', {day:'numeric', month:'numeric', year:'2-digit', hour:'2-digit', minute:'2-digit'});
+                        const avatar = update.creator.photo_thumb ? 
+                            `<img src="${update.creator.photo_thumb}">` : 
+                            `<div class="user-avatar-placeholder">${update.creator.name.charAt(0)}</div>`;
+
+                        const div = document.createElement('div');
+                        div.className = 'update-item';
+                        div.innerHTML = `
+                            <div class="user-avatar">${avatar}</div>
+                            <div class="update-content-wrapper">
+                                <div class="update-header">
+                                    <span class="user-name">${update.creator.name}</span>
+                                    <span class="update-time">${date}</span>
+                                </div>
+                                <div class="update-bubble">
+                                    ${update.body}
+                                </div>
+                            </div>
+                        `;
+                        historyList.appendChild(div);
+                    });
                 }
 
-                // רנדור פעולות
+                // --- בניית אזור פעולה ---
                 const rule = currentConfig.rules[currentStatusText];
                 const badgeDisplay = document.getElementById('statusBadgeDisplay');
                 
                 badgeDisplay.className = 'status-badge';
                 badgeDisplay.style.background = currentColor;
+                badgeDisplay.style.fontSize = '14px';
                 badgeDisplay.innerText = currentStatusText || "מצב התחלתי (ריק)";
 
+                const btnsDiv = document.getElementById('actionButtons');
+                const editorCont = document.querySelector('.editor-container');
+
                 if (!rule) {
-                    document.getElementById('statusTitle').innerText = "";
-                    document.getElementById('questionText').innerHTML = `לא הוגדר תהליך לשלב זה`;
-                    document.getElementById('actionButtons').innerHTML = "";
-                    document.querySelector('.editor-container').style.display = 'none';
+                    document.getElementById('questionText').innerHTML = `לא הוגדר שלב לסטטוס זה.`;
+                    btnsDiv.innerHTML = "";
+                    editorCont.style.display = 'none';
                     return;
                 }
 
-                document.querySelector('.editor-container').style.display = 'block';
-                document.getElementById('statusTitle').innerText = ""; 
+                editorCont.style.display = 'block';
                 document.getElementById('questionText').innerText = rule.question;
                 
                 if (!quillEditor) {
                     quillEditor = new Quill('#quill-editor', {
-                        theme: 'snow',
-                        placeholder: 'כתוב הערה כאן...',
+                        theme: 'snow', placeholder: 'כתוב הערה כאן...',
                         modules: { toolbar: [['bold', 'italic', 'underline'], [{'color':[]}], [{'list':'ordered'},{'list':'bullet'}]] }
                     });
-                } else {
-                    quillEditor.setText('');
-                }
+                } else { quillEditor.setText(''); }
 
-                const btnsDiv = document.getElementById('actionButtons');
                 btnsDiv.innerHTML = `
                     <button class="btn-action btn-fail" onclick="executeAction('${rule.fail}', '${itemId}', '${boardId}', false)">❌ ${rule.fail || 'ללא שינוי'}</button>
                     <button class="btn-action btn-pass" onclick="executeAction('${rule.pass}', '${itemId}', '${boardId}', true)">✅ ${rule.pass || 'ללא שינוי'}</button>
@@ -539,15 +536,16 @@
 
             document.getElementById('actionButtons').innerHTML = '<p style="color:#0073ea; font-weight:bold;">מעדכן נתונים...</p>';
 
+            // עיצוב ה-Update שנשמר, שיראה יפה בהיסטוריה
             const updateBody = `
-                <div style="border:1px solid #e0e0e0; padding:15px; border-radius:8px; background:#fff;">
-                    <strong>הוחלט:</strong> ${isPass ? '<span style="color:#00ca72">✅ עבר</span>' : '<span style="color:#fb275d">❌ לא עבר</span>'} <br>
-                    ${statusToUpdate ? `<strong>סטטוס חדש:</strong> ${statusToUpdate}` : ''}
-                    <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
-                    ${isEmpty ? 'ללא הערה' : feedback}
+                <div style="font-weight:bold; margin-bottom:5px;">
+                    ${isPass ? '<span style="color:#00ca72">✅ עבר שלב</span>' : '<span style="color:#fb275d">❌ לא עבר</span>'} 
+                    ${statusToUpdate ? ` ➝ הועבר ל: ${statusToUpdate}` : ''}
                 </div>
+                <div>${isEmpty ? 'ללא הערה נוספת' : feedback}</div>
             `;
             
+            // המרה מתאימה ל-JSON
             const escapedBody = updateBody.replace(/"/g, '\\"').replace(/\n/g, '');
             let mutation = `create_update (item_id: ${itemId}, body: "${escapedBody}") { id }`;
             if (statusToUpdate) {
