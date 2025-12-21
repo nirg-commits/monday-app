@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Monday Workflow Ultimate Color</title>
+    <title>Monday Workflow Ultimate Fixed</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monday-ui-react-core/dist/main.css" />
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     
@@ -26,7 +26,7 @@
             margin: 0 auto;
             overflow: hidden;
             position: relative;
-            min-height: 300px;
+            min-height: 350px; /* גובה מינימלי כדי למנוע קפיצות */
         }
 
         /* כפתור הגדרות */
@@ -34,19 +34,26 @@
             position: absolute;
             top: 15px;
             left: 15px; 
-            background: transparent;
-            border: none;
+            background: rgba(255,255,255,0.8);
+            border: 1px solid #eee;
+            border-radius: 50%;
+            width: 32px; height: 32px;
             cursor: pointer;
-            font-size: 20px;
-            color: #ccc;
+            font-size: 18px;
+            color: #666;
             z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
         }
-        .settings-btn:hover { color: var(--primary); }
+        .settings-btn:hover { color: var(--primary); background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* מסך הגדרות */
-        .settings-panel { padding: 30px; display: none; }
-        .settings-panel.active { display: block; }
+        /* ניהול מסכים */
+        .panel { display: none; padding: 30px; }
+        .panel.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+        /* אלמנטים של טופס */
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px; }
         select, input[type="text"] {
@@ -62,7 +69,6 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.02);
         }
         
-        /* עיצוב התגית הצבעונית */
         .rule-header {
             margin-bottom: 15px;
             display: flex;
@@ -86,22 +92,21 @@
             color: white;
             width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px;
         }
+        .save-btn:hover { background: #0060c0; }
 
         /* מסך ריצה (View Mode) */
-        .view-panel { display: none; }
-        .view-panel.active { display: block; }
-        .action-area { padding: 30px; text-align: center; }
+        .action-area { text-align: center; margin-top: 10px; }
         
-        /* היסטוריה */
         .last-update-box {
             background: #f0f4ff;
             border-bottom: 1px solid #d0d4e4;
             padding: 15px 20px;
             font-size: 13px;
             text-align: right;
+            margin: -30px -30px 20px -30px; /* הצמדה לקצוות */
         }
         .last-update-content {
-            background: white; padding: 10px; border-radius: 6px; border: 1px solid #e6e9ef; max-height: 80px; overflow-y: auto;
+            background: white; padding: 10px; border-radius: 6px; border: 1px solid #e6e9ef; max-height: 80px; overflow-y: auto; margin-top: 5px;
         }
 
         .editor-container { text-align: right; margin-bottom: 20px; background: #fff; }
@@ -120,10 +125,10 @@
 <body>
 
     <div class="card">
-        <button class="settings-btn" onclick="toggleSettings()" title="הגדרות">⚙️</button>
+        <button class="settings-btn" onclick="openSettings()" title="ערוך הגדרות">⚙️</button>
 
-        <div id="settingsPanel" class="settings-panel">
-            <h2>⚙️ הגדרת תהליך עבודה</h2>
+        <div id="settingsPanel" class="panel">
+            <h2 style="margin-top:0;">⚙️ הגדרת תהליך</h2>
             
             <div class="form-group">
                 <label>1. בחר עמודת סטטוס לניהול:</label>
@@ -133,19 +138,19 @@
             <div id="rulesContainer" style="display:none;">
                 <p>2. הגדר מה קורה בכל שלב:</p>
                 <div id="rulesList"></div>
-                <button class="save-btn" onclick="saveConfiguration()">שמור הגדרות</button>
+                <button class="save-btn" onclick="saveConfiguration()">שמור וסגור</button>
             </div>
             
-            <div id="loadingSettings" style="display:none; text-align:center;">טוען נתוני לוח...</div>
+            <div id="loadingSettings" style="display:none; text-align:center; color:#888;">טוען נתוני לוח...</div>
         </div>
 
-        <div id="viewPanel" class="view-panel">
+        <div id="viewPanel" class="panel">
             <div id="lastUpdateContainer"></div>
             
             <div class="action-area">
                 <div id="statusBadgeDisplay" style="display: inline-block; margin-bottom: 15px;"></div>
-                <h2 id="statusTitle" style="margin-top:0;"></h2>
-                <p id="questionText"></p>
+                <h2 id="statusTitle" style="margin-top:0; font-size: 20px;"></h2>
+                <p id="questionText" style="color:#555; font-size:16px;"></p>
                 
                 <div class="editor-container">
                     <div id="quill-editor"></div>
@@ -155,8 +160,9 @@
             </div>
         </div>
         
-        <div id="messagePanel" style="padding: 40px; text-align: center; display: none;">
-            <h3 id="messageText"></h3>
+        <div id="messagePanel" class="panel" style="text-align: center; padding-top: 100px;">
+            <h3 id="messageText" style="color:#666;">טוען נתונים...</h3>
+            <button id="configBtn" class="save-btn" style="width:auto; display:none;" onclick="openSettings()">פתח הגדרות</button>
         </div>
     </div>
 
@@ -165,7 +171,7 @@
         let quillEditor = null;
         let boardColumns = []; 
         let currentConfig = {}; 
-        let statusMetadata = []; // מערך שמחזיק את כל המידע על הסטטוסים (שם, צבע, אינדקס)
+        let statusMetadata = []; 
 
         async function init() {
             const storage = await monday.storage.instance.getItem('workflow_config');
@@ -178,7 +184,7 @@
                 const boardId = res.data.boardId;
                 
                 if (!currentConfig.columnId) {
-                    toggleSettings(true);
+                    openSettings();
                     loadBoardData(boardId);
                 } else {
                     renderItemView(itemId, boardId);
@@ -186,28 +192,22 @@
             });
         }
 
-        // --- מסך הגדרות ---
+        // --- מעבר בין מסכים ---
 
-        function toggleSettings(forceOpen = false) {
-            const settingsPanel = document.getElementById('settingsPanel');
-            const viewPanel = document.getElementById('viewPanel');
-            const msgPanel = document.getElementById('messagePanel');
+        function showPanel(panelId) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(panelId).classList.add('active');
+        }
 
-            if (forceOpen || settingsPanel.style.display === 'none' || !settingsPanel.style.display) {
-                settingsPanel.classList.add('active');
-                viewPanel.classList.remove('active');
-                msgPanel.style.display = 'none';
-                monday.get("context").then(res => loadBoardData(res.data.boardId));
-            } else {
-                settingsPanel.classList.remove('active');
-                monday.get("context").then(res => renderItemView(res.data.itemId, res.data.boardId));
-            }
+        function openSettings() {
+            showPanel('settingsPanel');
+            // טעינת דאטה למקרה שהמשתמש פתח ידנית
+            monday.get("context").then(res => loadBoardData(res.data.boardId));
         }
 
         async function loadBoardData(boardId) {
             document.getElementById('loadingSettings').style.display = 'block';
             
-            // שליפת הגדרות מורחבות של העמודות כדי לקבל צבעים
             const query = `query { boards (ids: [${boardId}]) { columns { id title type settings_str } } }`;
             const res = await monday.api(query);
             
@@ -244,68 +244,47 @@
             const column = boardColumns.find(c => c.id === colId);
             const settings = JSON.parse(column.settings_str);
             
-            // בניית רשימת הסטטוסים עם צבעים
             statusMetadata = [];
             
-            // 1. הוספת סטטוס "ריק" (שלב 0) באופן ידני
+            // סטטוס ריק
             statusMetadata.push({
-                index: null, // מסמן שזה הריק
-                label: "",   // המפתח בקונפיגורציה
-                displayLabel: "מצב התחלתי (ללא סטטוס / ריק)",
-                color: "#c4c4c4" // אפור של מאנדיי
+                index: null, label: "", displayLabel: "מצב התחלתי (ריק)", color: "#c4c4c4"
             });
 
-            // 2. שליפת הסטטוסים מההגדרות (labels_colors הוא המקור האמין לצבעים)
             const labelsColors = settings.labels_colors || {};
             const labelsOnly = settings.labels || {};
             
-            // איחוד מידע
             for (const [key, val] of Object.entries(labelsColors)) {
-                // val יכול להיות מחרוזת או אובייקט תלוי בגרסה
                 const labelText = val.label || labelsOnly[key]; 
                 const color = val.color || "#333";
-                
                 if (labelText) {
-                    statusMetadata.push({
-                        index: key,
-                        label: labelText,
-                        displayLabel: labelText,
-                        color: color
-                    });
+                    statusMetadata.push({ index: key, label: labelText, displayLabel: labelText, color: color });
                 }
             }
 
             container.style.display = 'block';
             list.innerHTML = '';
 
-            // יצירת טופס לכל סטטוס (כולל הריק)
             statusMetadata.forEach(meta => {
-                // שליפת הגדרה קיימת (לסטטוס הריק המפתח הוא מחרוזת ריקה)
                 const savedRule = currentConfig.rules ? currentConfig.rules[meta.label] : {};
-
                 const div = document.createElement('div');
                 div.className = 'rule-box';
                 div.innerHTML = `
                     <div class="rule-header">
                         <span class="status-badge" style="background:${meta.color};">${meta.displayLabel}</span>
-                        ${meta.index === null ? '<small>(שלב 0)</small>' : ''}
                     </div>
                     
-                    <label>השאלה:</label>
+                    <label>שאלה:</label>
                     <input type="text" class="q-input" data-status-key="${meta.label}" value="${savedRule.question || ''}" placeholder="הכנס שאלה...">
                     
                     <div style="display:flex; gap:10px; margin-top:10px;">
                         <div style="flex:1">
-                            <label>✅ עבר - יעבור ל:</label>
-                            <select class="pass-select">
-                                ${generateStatusOptions(meta.label, savedRule.pass)}
-                            </select>
+                            <label>✅ עבר ל:</label>
+                            <select class="pass-select">${generateStatusOptions(meta.label, savedRule.pass)}</select>
                         </div>
                         <div style="flex:1">
-                            <label>❌ נכשל - יעבור ל:</label>
-                            <select class="fail-select">
-                                ${generateStatusOptions(meta.label, savedRule.fail)}
-                            </select>
+                            <label>❌ נכשל ל:</label>
+                            <select class="fail-select">${generateStatusOptions(meta.label, savedRule.fail)}</select>
                         </div>
                     </div>
                 `;
@@ -315,12 +294,8 @@
 
         function generateStatusOptions(currentLabel, selectedLabel) {
             let html = '<option value="">-- ללא שינוי --</option>';
-            // משתמשים במטא-דאטה כדי לייצר את הרשימה
             statusMetadata.forEach(meta => {
-                // לא מאפשרים לבחור את הסטטוס הנוכחי כיעד (אופציונלי, אבל הגיוני)
-                // וגם לא מציגים את "מצב התחלתי" בתוך הרשימה כי אי אפשר "לחזור" לסטטוס ריק בדרך כלל דרך API פשוט (אלא אם מנקים)
                 if (meta.label === currentLabel || meta.index === null) return;
-                
                 const isSelected = meta.label === selectedLabel ? 'selected' : '';
                 html += `<option value="${meta.label}" ${isSelected}>${meta.displayLabel}</option>`;
             });
@@ -330,9 +305,12 @@
         async function saveConfiguration() {
             const colId = document.getElementById('columnSelect').value;
             const rules = {};
+            const saveBtn = document.querySelector('.save-btn');
+            
+            saveBtn.innerHTML = "שומר...";
 
             document.querySelectorAll('.rule-box').forEach(box => {
-                const key = box.querySelector('.q-input').dataset.statusKey; // המפתח האמיתי (למשל "" לריק)
+                const key = box.querySelector('.q-input').dataset.statusKey; 
                 const question = box.querySelector('.q-input').value;
                 const pass = box.querySelector('.pass-select').value;
                 const fail = box.querySelector('.fail-select').value;
@@ -345,26 +323,29 @@
             const config = { columnId: colId, rules: rules };
             await monday.storage.instance.setItem('workflow_config', JSON.stringify(config));
             currentConfig = config;
-            monday.execute("notice", { message: "נשמר!", type: "success" });
-            toggleSettings();
+            
+            monday.execute("notice", { message: "הגדרות נשמרו! מעבר לאפליקציה...", type: "success" });
+            
+            // --- התיקון הקריטי: מעבר מיידי למצב צפייה ---
+            saveBtn.innerHTML = "שמור וסגור";
+            // קריאה לקונטקסט מחדש ורינדור האפליקציה
+            const context = await monday.get("context");
+            renderItemView(context.data.itemId, context.data.boardId);
         }
 
         // --- מסך ריצה (View) ---
 
         async function renderItemView(itemId, boardId) {
-            const viewPanel = document.getElementById('viewPanel');
-            const msgPanel = document.getElementById('messagePanel');
-            
+            // אם אין קונפיגורציה, נציג הודעה
             if (!currentConfig.columnId) {
-                msgPanel.style.display = 'block';
-                document.getElementById('messageText').innerText = "אנא הגדר את האפליקציה";
+                showPanel('messagePanel');
+                document.getElementById('messageText').innerText = "לא הוגדרו הגדרות לאפליקציה";
+                document.getElementById('configBtn').style.display = 'inline-block';
                 return;
             }
 
-            viewPanel.classList.add('active');
-            msgPanel.style.display = 'none';
+            showPanel('viewPanel');
 
-            // שליפת נתונים + הגדרות עמודה כדי לקבל את הצבע הנוכחי
             const query = `
                 query { 
                     items (ids: [${itemId}]) { 
@@ -380,15 +361,14 @@
                 if (!res.data || !res.data.items.length) return;
 
                 const item = res.data.items[0];
-                const currentStatusText = item.column_values[0].text || ""; // ריק אם null
+                const currentStatusText = item.column_values[0].text || "";
                 const lastUpdate = item.updates[0];
                 
-                // שליפת צבע הסטטוס הנוכחי לתצוגה יפה
+                // מציאת צבע
                 const colSettings = JSON.parse(res.data.boards[0].columns[0].settings_str);
                 const labelsColors = colSettings.labels_colors || {};
-                let currentColor = "#c4c4c4"; // ברירת מחדל אפור
+                let currentColor = "#c4c4c4"; 
                 
-                // חיפוש הצבע של הסטטוס הנוכחי
                 for (const val of Object.values(labelsColors)) {
                     if (val.label === currentStatusText) {
                         currentColor = val.color;
@@ -398,42 +378,36 @@
 
                 renderHistory(lastUpdate);
 
-                // שימוש במפתח ריק "" אם הסטטוס הוא ריק/null
                 const rule = currentConfig.rules[currentStatusText];
-                const actionArea = document.querySelector('.action-area');
-                
-                // עדכון הכותרת והצבע
                 const badgeDisplay = document.getElementById('statusBadgeDisplay');
+                
                 badgeDisplay.className = 'status-badge';
                 badgeDisplay.style.background = currentColor;
-                badgeDisplay.style.fontSize = '16px'; // קצת יותר גדול למסך הראשי
+                badgeDisplay.style.fontSize = '16px';
                 badgeDisplay.innerText = currentStatusText || "מצב התחלתי";
 
                 if (!rule) {
                     document.getElementById('statusTitle').innerText = "";
-                    document.getElementById('questionText').innerText = "";
-                    document.getElementById('actionButtons').innerHTML = "<p>לא הוגדרה פעולה לשלב זה.</p>";
-                    // הסתרת העורך
+                    document.getElementById('questionText').innerHTML = "לא הוגדרה פעולה לסטטוס זה.<br><small>לחץ על גלגל השיניים כדי להגדיר.</small>";
+                    document.getElementById('actionButtons').innerHTML = "";
                     document.querySelector('.editor-container').style.display = 'none';
                     return;
                 }
 
-                // הצגת הטופס
                 document.querySelector('.editor-container').style.display = 'block';
-                document.getElementById('statusTitle').innerText = ""; // כבר יש את הבאדג' למעלה
+                document.getElementById('statusTitle').innerText = ""; 
                 document.getElementById('questionText').innerText = rule.question;
                 
                 if (!quillEditor) {
                     quillEditor = new Quill('#quill-editor', {
                         theme: 'snow',
-                        placeholder: 'הערה...',
+                        placeholder: 'כתוב הערה כאן...',
                         modules: { toolbar: [['bold', 'italic', 'underline'], [{'color':[]}], [{'list':'ordered'},{'list':'bullet'}]] }
                     });
                 } else {
                     quillEditor.setText('');
                 }
 
-                // כפתורים
                 const btnsDiv = document.getElementById('actionButtons');
                 btnsDiv.innerHTML = `
                     <button class="btn-action btn-fail" onclick="executeAction('${rule.fail}', '${itemId}', '${boardId}', false)">❌ ${rule.fail || 'ללא'}</button>
@@ -454,7 +428,10 @@
             const date = new Date(update.created_at).toLocaleDateString('he-IL', {day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit'});
             container.innerHTML = `
                 <div class="last-update-box">
-                    <div style="font-weight:bold; margin-bottom:5px;">👤 ${update.creator.name} (${date}):</div>
+                    <div style="font-weight:bold; margin-bottom:5px; display:flex; align-items:center; gap:5px;">
+                        <img src="${update.creator.photo_thumb}" style="width:20px; height:20px; border-radius:50%;"> 
+                        ${update.creator.name} <span style="font-weight:normal; color:#777;">(${date})</span>
+                    </div>
                     <div class="last-update-content">${update.body}</div>
                 </div>
             `;
